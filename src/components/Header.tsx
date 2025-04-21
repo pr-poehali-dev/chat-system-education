@@ -20,6 +20,9 @@ const Header = () => {
           <Link to="/about" className="font-medium transition-colors hover:text-chat-purple">
             О нас
           </Link>
+          <Link to="/chats" className="font-medium transition-colors hover:text-chat-purple">
+            Чаты
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <Button variant="outline" className="hidden md:flex">
