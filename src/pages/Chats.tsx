@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import QuietHoursIndicator, { isQuietHours } from "@/components/QuietHoursIndicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,7 +10,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { TabsContent, Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Send, Paperclip, Search, MoreVertical, Phone, Video, User, Bell } from "lucide-react";
+import { Send, Paperclip, Search, MoreVertical, Phone, Video, User, Bell, BellOff } from "lucide-react";
+import { toast } from "sonner";
 
 interface Contact {
   id: string;
@@ -118,6 +120,45 @@ const Chats = () => {
   ]);
 
   const [newMessage, setNewMessage] = useState("");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [quietHours, setQuietHours] = useState(isQuietHours());
+
+  useEffect(() => {
+    // Обновляем статус тихого часа каждую минуту
+    const interval = setInterval(() => {
+      setQuietHours(isQuietHours());
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleSendMessage = () => {
+    if (newMessage.trim()) {
+      // Логика отправки сообщения
+
+      // Очищаем поле ввода
+      setNewMessage("");
+
+      // Уведомляем об отправке
+      toast.success("Сообщение отправлено");
+    }
+  };
+
+  const handleReceiveMessage = (message: any) => {
+    // В реальном приложении здесь была бы логика получения сообщения
+    // и добавления его в состояние
+
+    // Уведомление будет показано только если уведомления включены
+    // и сейчас не "тихий час"
+    if (notificationsEnabled && !quietHours) {
+      toast.info(`Новое сообщение от ${message.sender}`);
+      // В реальном приложении здесь был бы звуковой сигнал
+    } else {
+      // В тихий час или при выключенных уведомлениях
+      // просто добавляем сообщение без звука
+      console.log("Сообщение получено без звукового уведомления");
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -273,12 +314,13 @@ const Chats = () => {
                       <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
                     )}
                   </div>
-                  <div>
+                  <div className="flex items-center">
                     <h2 className="font-medium">{selectedContact.name}</h2>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedContact.status === "online" ? "В сети" : "Не в сети"}
-                    </p>
+                    <QuietHoursIndicator />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedContact.status === "online" ? "В сети" : "Не в сети"}
+                  </p>
                 </div>
                 <div className="flex items-center gap-4">
                   <Button variant="ghost" size="icon" className="text-muted-foreground">
@@ -290,8 +332,17 @@ const Chats = () => {
                   <Button variant="ghost" size="icon" className="text-muted-foreground">
                     <User className="h-5 w-5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground">
-                    <Bell className="h-5 w-5" />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-muted-foreground"
+                    onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                  >
+                    {notificationsEnabled ? (
+                      <Bell className="h-5 w-5" />
+                    ) : (
+                      <BellOff className="h-5 w-5" />
+                    )}
                   </Button>
                   <Button variant="ghost" size="icon" className="text-muted-foreground">
                     <MoreVertical className="h-5 w-5" />
@@ -328,6 +379,12 @@ const Chats = () => {
               
               {/* Message Input */}
               <div className="p-4 border-t">
+                {quietHours && (
+                  <div className="mb-2 px-3 py-1.5 bg-amber-50 text-amber-800 rounded-md text-sm flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    <span>Сейчас действует "тихий час" (20:00-7:00). Получатель не получит звуковых уведомлений о сообщении.</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon" className="text-muted-foreground">
                     <Paperclip className="h-5 w-5" />
@@ -339,18 +396,14 @@ const Chats = () => {
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && newMessage.trim()) {
-                        setNewMessage("");
+                        handleSendMessage();
                       }
                     }}
                   />
                   <Button 
                     className="bg-chat-purple hover:bg-chat-dark"
                     size="icon"
-                    onClick={() => {
-                      if (newMessage.trim()) {
-                        setNewMessage("");
-                      }
-                    }}
+                    onClick={handleSendMessage}
                   >
                     <Send className="h-4 w-4" />
                   </Button>
@@ -362,6 +415,15 @@ const Chats = () => {
               <div className="text-center">
                 <h2 className="text-xl font-semibold mb-2">Выберите чат</h2>
                 <p className="text-muted-foreground">Выберите контакт из списка слева, чтобы начать общение</p>
+                {quietHours && (
+                  <div className="mt-4 p-3 bg-amber-50 text-amber-800 rounded-md inline-flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5" />
+                    <div className="text-left">
+                      <p className="font-medium">Сейчас действует "тихий час" (20:00-7:00)</p>
+                      <p className="text-sm">Все входящие сообщения будут получены без звуковых уведомлений</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
